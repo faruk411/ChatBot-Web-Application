@@ -1,0 +1,77 @@
+﻿@{
+    ViewBag.Title = "About";
+}
+
+<section class="mb-5">
+    <!--Section heading-->
+    <h2 class="h1-responsive font-weight-bold text-center my-4">Bize Ulaşın</h2>
+    <!--Section description-->
+    <p class="text-center w-responsive mx-auto mb-5">
+        Herhangi bir sorunuz mu var? Lütfen doğrudan bizimle iletişime geçmekten çekinmeyin.
+        Ekibimiz size yardımcı olmak için birkaç saat içinde size geri dönecektir.
+    </p>
+
+    <div class="row justify-content-center">
+        <!-- Contact Form Card -->
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-4">
+                    <form id="contact-form" name="contact-form" action="mail.php" method="POST">
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="name">Adınız</label>
+                                    <input type="text" id="name" name="name" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="email">Eposta Adresiniz</label>
+                                    <input type="email" id="email" name="email" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="subject">Konu Başlığı</label>
+                            <input type="text" id="subject" name="subject" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="message">Mesajınız</label>
+                            <textarea id="message" name="message" rows="4" class="form-control"></textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary px-4">Gönder</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="col-md-4 text-center mt-4 mt-md-0">
+            <div class="card shadow-sm border-0 p-3">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-4">
+                        <i class="fas fa-map-marker-alt fa-2x text-primary"></i>
+                        <p class="mb-0">Kocaeli / İzmit , Türkiye </p>
+                    </li>
+
+                    <li class="mb-4">
+                        <i class="fas fa-phone fa-2x text-primary"></i>
+                        <p class="mb-0">+09 5528796354</p>
+                    </li>
+
+                    <li>
+                        <i class="fas fa-envelope fa-2x text-primary"></i>
+                        <p class="mb-0">deepclue@gmail.com</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>

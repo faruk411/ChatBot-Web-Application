@@ -1,0 +1,346 @@
+﻿@{ 
+    ViewBag.Title = "Chat";
+    var selectedSession = ViewBag.SelectedSession as chatbot.Models.ChatSession;
+    var chatSessions = ViewBag.ChatSessions as List<chatbot.Models.ChatSession>;
+    var currentChatMessages = ViewBag.CurrentChatMessages as List<chatbot.Models.ChatMessage>;
+}
+
+<style>
+    .sidebar {
+        border-right: 1px solid #ddd;
+        height: calc(100vh - 80px);
+    }
+
+    .chat-window {
+        height: calc(100vh - 280px);
+        overflow-y: auto;
+    }
+    /* Yüksekliği ayarladık */
+    .chat-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .chat-list-item a {
+            text-decoration: none;
+            color: inherit;
+            flex-grow: 1;
+        }
+
+    .chat-message {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .question {
+        background-color: #f1f1f1;
+    }
+
+    .answer {
+        background-color: #e2f0ff;
+    }
+
+    .message-image {
+        max-width: 300px;
+        border-radius: 5px;
+        margin-top: 5px;
+    } 
+</style>
+
+<div class="container-fluid mt-3">
+  
+    <div class="row">
+        <div class="col-md-3 sidebar pt-5">
+
+            @if (selectedSession != null)
+            {
+                <div class="mb-3">
+                    <label for="modelSelector" class="form-label">Model Seçin:</label>
+                    <select id="modelSelector" class="form-select" style="max-width: 300px;">
+                        <option value="text" selected>SinAi (Tıbbi Asistan)</option>
+                        <option value="image">VisionAi (Görsel Analizi)</option>
+                    </select>
+                </div>
+            }
+
+            @using (Html.BeginForm("CreateNewChat", "Home", FormMethod.Post))
+            {
+                <button type="submit" class="btn btn-primary w-100 mb-3">
+                    <i class="fas fa-plus"></i> Yeni Sohbet
+                </button>
+            }
+            <h5>Sohbet Geçmişi</h5>
+            <div class="list-group">
+                @if (chatSessions != null)
+                {
+                    foreach (var session in chatSessions)
+                    {
+                        <div class="list-group-item list-group-item-action @(selectedSession?.Id == session.Id ? "active":"" ) chat-list-item  ">
+                            <a href="@Url.Action("Chat","Home", new {id=session.Id})">
+                                @session.Title
+                            </a>
+                        </div>
+                    }
+                }
+            </div>
+
+        </div>
+        <div class="col-md-9 pt-3">
+            <p class="text-center fst-italic">Yapay zeka hata yapabilir, sorduktan sonra yanıtı kontrol et</p>
+            @if(selectedSession != null)
+            {
+                <div class="d-flex justify-content-between align-items-center mn-3">
+                    <h4 id="chatTitle"@selectedSession.Title></h4>
+                    <div class="mb-2">
+                        <button class="btn btn-sm btn-outline-secondary accordion me-2" onclick="showRenameModal()">
+                            <i class="fas fa-pen"></i>Yeniden Adlandır
+                        </button>
+                        @using (Html.BeginForm("DeleteChat", "Home", new { id = selectedSession.Id }, 
+                            FormMethod.Post, new { @class = "d-inline", onsubmit = "return confirm('Bu sohbeti silmek istediğinize emin misiniz?');" }))
+                            {
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i> Sil
+                                </button>
+                            }
+                    </div>
+                </div>
+
+                <div id="chatDisplay" class="chat-window p-3 border rounded mb-3">
+                    @if(currentChatMessages != null)
+                    {
+                        foreach(var msg in currentChatMessages)
+                         {
+                           <div class="chat-message question">
+                               @if(!string.IsNullOrEmpty(msg.ImageBase64))
+                               {
+                                    <strong>Giriş (Görsel) : </strong><br/>
+                                    <img src="data:image;base64,@msg.ImageBase64" class="message-image" alt="Yüklenen Görsel" /><br/>
+                               }
+                               @if(!string.IsNullOrEmpty(msg.Question))
+                                {
+                                    <strong>Soru:</strong> @msg.Question
+                                }
+                           </div>
+                           <div class="chat-message answer">
+                                <strong>Cevap: </strong>
+                                <span>@msg.Answer</span>
+                                <button class="btn btn-sm btn-outline-secondary ms-2"
+                                        onclick="toggleSpeech(this, '@HttpUtility.JavaScriptStringEncode(msg.Answer)')"
+                                        title="Cevabı sesli dinle / Durdur">
+                                    <i class="fas fa-volume-high"></i>
+                                </button>
+                           </div>
+                         }
+                    }
+                </div>
+
+                <div id="text-input-container">
+                    @using(Html.BeginForm("SendMessage","Home", FormMethod.Post))
+                     {
+                        @Html.AntiForgeryToken()
+                        @Html.Hidden("chatSessionId", selectedSession.Id)
+                    <div class="input-group">
+                        <textarea name="question" id="textQuestion" class="form-control" style="max-width:800px;" rows="2" placeholder="Bir soru sorun..." aria-describedby="button-addon2" required></textarea>
+                        <button type="submit" id="button-addon2" class="btn btn-outline-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                        <button type="button" id="voiceInputBtn" class="btn btn-outline-secondary"><i class="fas fa-microphone"></i></button>
+                    </div>
+
+                     }
+                </div>
+                <div id="image-input-container" style="display:none;">
+                    @using(Html.BeginForm("SendImage","Home", FormMethod.Post, new {enctype = "multipart/form-data" }))
+                     {
+                        @Html.AntiForgeryToken()
+                        @Html.Hidden("chatSessionId", selectedSession.Id)
+                        <div class="input-group">
+                            <input type="file"  name="imageFile" class="form-control" required accept="image/*" />
+                            <button type="submit" class="btn btn-primary" >Görsel Yükle</button>
+                        </div>
+                        <textarea name="question" class="form-control mt-2" style="max-width:800px;" rows="1" placeholder="İsteğe bağlı ek bilgi...."></textarea>
+                     }
+                </div>
+
+            }
+            else
+                {
+                    <div class="text-center mt-5">
+                        <h5>Başlamak için bir sohbet seçin veya yeni bir tane oluşturun. </h5>
+                    </div>
+                }
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="renameModal" tabindex="-1" role="dialog" aria-labelledby="renameModalLabel" aria-hidden="true">
+    <div class="modal-dialog ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sohbeti Yeniden Adlandır</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="newTitleInput" class="form-control" placeholder="Yeni Başlık Girin" />
+                <div id="renameError" class="text-danger mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="renameChat()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts{
+    <script>
+        // sayfa yüklendiğinde sohbet penceresini en alta alır
+        window.onload = function () {
+            var chatDisplay = document.getElementById("chatDisplay");
+            if (chatDisplay) {
+                chatDisplay.scrollTop = chatDisplay.scrollHeight;
+            }
+        };
+
+        // model seçici dropdown menü
+        document.getElementById('modelSelector').addEventListener('change', function () {
+            var textContainer = document.getElementById('text-input-container');
+            var imageContainer = document.getElementById('image-input-container');
+
+            if (this.value == 'image') {
+                textContainer.style.display = 'none';
+                imageContainer.style.display = 'block';
+            } else {
+                textContainer.style.display = 'block';
+                imageContainer.style.display = 'none';
+            }
+        });
+
+        // Yeniden adlandırma modalını gösterir
+        function showRenameModal() {
+            var currentTitle = document.getElementById("chatTitle").innerText;
+            document.getElementById("newTitleInput").value = currentTitle;
+            document.getElementById("renameError").innerText = "";
+            var renameModal = new bootstrap.Modal(document.getElementById("renameModal"));
+            renameModal.show();
+
+        }
+        // Sohbeti yeniden adlandırır (ajax)
+        function renameChat() {
+            var newTitle = document.getElementById('newTitleInput').value;
+            var sessionId = @(selectedSession?.Id ?? 0);
+
+            if (!newTitle.trim()) {
+                document.getElementById('renameError').innerText = 'Başlık boş olamaz.';
+                return;
+            }
+
+            $.ajax({
+                url: '@Url.Action("RenameChat", "Home")',
+                type: 'POST',
+                data: { id: sessionId, newTitle: newTitle },
+                success: function (response) {
+                    if (response.success) {
+                        location.reload(); // Sayfayı yenileyerek güncel başlığı göster
+                    } else {
+                         document.getElementById('renameError').innerText = response.message;
+                    }
+                },
+                error: function () {
+                    document.getElementById('renameError').innerText = 'Bir hata oluştu.';
+                }
+            });
+        }
+        // sesli giriş için
+        const textInput = document.getElementById('textQuestion');
+        const voiceInputBtn = document.getElementById('voiceInputBtn');
+        let recognition;
+        let isRecognizing = false;
+
+        // web speech API kontrolü
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false; // kullanıcı durakladığında dur
+            recognition.interimResults = false; // geçici sonuçları gösterme
+            recognition.lang = 'en-US'; // dil ayarı
+
+            // konuşma bittiğinde veya tanınan metin alındığında
+            recognition.onresult = (event) => {
+                const trasncript = event.results[0][0].transcript;
+                textInput.value = trasncript; // tanınan metni inputa ekle
+                isRecognizing = false;
+                voiceInputBtn.innerHTML = '<i class="fas fa-microphone"></i>'; // düğmeyi eski haline geri al 
+            };
+
+            // hata oluştuğunda çalışacak olay
+            recognition.error = (event) => {
+                console.log("Konuşma Hatası:" , event.error);
+                isRecognizing = false;
+                voiceInputBtn.innerHTML = '<i class="fas fa-microphone"></i>'; // düğmeyi eski haline geri al
+                alert("Konuşma hatası oldu lütfen tekrar deneyin");
+            };
+            // ses kaydı durduğunda
+            recognition.onend = () => {
+                isRecognizing = false;
+                voiceInputBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            };
+
+            // mikrofon düğmesine tıklandığında
+            voiceInputBtn.addEventListener('click', () => {
+                if (isRecognizing) {
+                    recognition.stop();
+                    isRecognizing = false;
+                    voiceInputBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                } else {
+                    recognition.start();
+                    isRecognizing = true;
+                    voiceInputBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>'; // kayıt başladığında simgeyi değiştir
+                    textInput.value = 'Dinleniliyor...'; // kullanıcaya geri bildirim
+                }
+
+            });
+        } else {
+            // tarayıcı desteklemiyorsa düğmeyi gizle ve uyarı ver
+            voiceInputBtn.style.display = 'none';
+            console.warn('Web Speech API tarayıcınız desteklemiyor');
+        }
+
+        // hangi butonu geri çağırdığını takip etmke için
+        let currentlyPlayingButton = null;
+        // metni sesli okuma fonksiyonu
+        function toggleSpeech(buttonElement, text) {
+            const isSpeaking = window.speechSynthesis.speaking;
+
+            // eğer bir ses çalıyorsa ve tıklanan buton o sese aitse sesi durdur
+            if (isSpeaking && currentlyPlayingButton == buttonElement) {
+                window.speechSynthesis.cancel();
+                return;
+            }
+            // başka bir ses çalıyorsa veya hiç ses çalmıyorsa mevcut sesi durdur
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+            }
+            // hatalaro önlemek için kısa bir bekleme
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US'; // Türkçe dil ayarı
+                utterance.rate = 0.9; // konuşma hızı
+
+                // konuşma başladığında çalışacak olay
+                utterance.onstart = () => {
+                    // iconu durdur yap
+                    buttonElement.innerHTML = '<i class="fas fa-stop"></i>';
+                    currentlyPlayingButton = buttonElement; // şu anki butonu kaydet
+                };
+                // konuşma bittiğinde çalışacak olay
+                utterance.onend = () => {
+                    // iconu tekrara oynat yap
+                    buttonElement.innerHTML = '<i class="fas fa-volume-high"></i>';
+                    currentlyPlayingButton = null; // şu anki butonu sıfırla
+                };
+                window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+
+    </script>
+}
